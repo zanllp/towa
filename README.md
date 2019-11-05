@@ -24,7 +24,7 @@ export const { storeControl, getBlendDB } = createConnection({
     },
 });
 ```
-支持多个连接
+支持多个连接,连接参数和[typeorm](https://github.com/typeorm/typeorm/blob/master/docs/zh_CN/connection-options.md)和[ioredis](https://github.com/luin/ioredis)一样
 # 定义实体
 ```typescript
 // app/entity/document.ts
@@ -78,38 +78,45 @@ export class Document {
 
 ```
 # CRUD
-```typescript
+```ts
 // app/xx.ts
 import { Document } from './document.ts'
 const { store } = Document;
-
-// create
+```
+## create
+```ts
 const doc = new Document();
-doc.authorId = 1;
+doc.authorId = user.id;
 doc.title = 'hello world';
 doc.content = '23333';
 await store.push(doc);
-
-// read
-// 查询实体时，若存在于redis直接返回，反之
+```
+## read
+```ts
+// 查询实体时，若存在于redis直接返回，反之先从typeorm加载到redis，再获取
 const doc = await store.get(id); // 获取doc id为1的实体
-const doc = await store.get('hello world', 'title'); // 使用索引获取
+const doc = await store.get('hello world', 'title'); // 使用索引获取,需要指定indexFiled
 const docs = await store.get(authorId, 'authorId', -1) // 获取用户id为1下的所有doc
-
-// update
-// 方法1，先从typeorm获取实体，可以用findOneOrFail也可以用store.getRepo()获取对应的存储库
+const inst = store.getInstance(id);
+const doc = await inst.src();
+```
+## update
+* 方法1，先从typeorm获取实体，可以用findOneOrFail也可以用store.getRepo()获取对应的存储库
+```ts
 const doc = await store.findOneOrFail(id);
 doc.content += 'emmm';
 await store.save(doc);
-// 方法2，速度更快，因为除同步时外，不需要经过typeorm
+```
+* 方法2，速度更快，因为除同步时外，不需要经过typeorm
+```ts
 const inst = store.getInstance(id);
 await inst.setItems({   
     title: 'hello',
     content: 'world'
  });
 await inst.step('hincrby', 'clickCount', 1); // clickCount++
-
-// delete
+```
+## delete 
+```ts 
 await store.del(id);
-
 ```
