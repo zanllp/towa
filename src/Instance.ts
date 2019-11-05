@@ -37,6 +37,7 @@ export class Instance<T, U extends IEntity> {
         await this.checkExist();
         let shouldRebuildIndex = false;
         const params = new Array<any>();
+        // tslint:disable-next-line: forin
         for (const key in items) {
             if (!shouldRebuildIndex && store.indexFieldBlend.includes(key as keyof U)) {
                 shouldRebuildIndex = true;
@@ -79,8 +80,9 @@ export class Instance<T, U extends IEntity> {
         const sync = () => store.getRepo().then(
             async repo => {
                 const target = await this.store.findOneOrFail(this.store.uk2dbLoadParams(uk));
+                // tslint:disable-next-line: forin
                 for (const key in items) {
-                    target[key] = items[key];
+                    (target as any)[key] = items[key];
                 }
                 await repo.save(target as any);
             });

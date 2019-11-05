@@ -1,9 +1,13 @@
 # towa
-自动同步redis与mysql（typeorm）的node库，支持单索引多索引,有时间就搞成npm的
+自动同步redis与mysql（typeorm）的node库，支持单索引多索引
+# 安装
+```
+yarn add towa 或者 npm i towa
+```
 # 连接
 ```typescript
 // app/store.ts
-import { createConnection } from './Towa/index';
+import { createConnection } from 'towa';
 export const { storeControl, getBlendDB } = createConnection({
     typeorm: {
         type: 'mysql',

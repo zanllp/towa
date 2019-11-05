@@ -13,6 +13,7 @@ export interface IBlendDB {
 const connect: IBlendDB[] = new Array();
 const connectParams: IConnectionParams[] = new Array();
 
+// tslint:disable-next-line: no-shadowed-variable
 export const createConnection = (connect: IConnectionParams) => {
     connectParams.push(connect);
     const index = connectParams.length - 1;

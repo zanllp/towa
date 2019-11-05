@@ -49,17 +49,17 @@ export default class StoreControl<T, U extends IEntity> {
     /**
      * 索引字段，1对1，字符串实现
      */
-    public indexField: Array<keyof U>;
+    public indexField: (keyof U)[];
 
     /**
      * 多索引字段，多对1，集合实现
      */
-    public mutliIndexField: Array<keyof U>;
+    public mutliIndexField: (keyof U)[];
 
     /**
      * 两种索引的混合
      */
-    public indexFieldBlend: Array<keyof U>;
+    public indexFieldBlend: (keyof U)[];
 
     /**
      * 索引生成函数，indexKey[field] 返回对应函数
@@ -74,7 +74,7 @@ export default class StoreControl<T, U extends IEntity> {
     /**
      * 指定缓存字段，默认所有，必须包含id，没有会帮你加上
      */
-    public cacheField: Array<keyof U>;
+    public cacheField: (keyof U)[];
 
     constructor(init: IStoreControlInit<T, U>, connectionIndex: number) {
         const { convert, uniqueKey, entity, indexField, cacheField, multiIndexField, forceSync } = init;
@@ -272,7 +272,7 @@ export default class StoreControl<T, U extends IEntity> {
      * @param field 索引的字段，或者叫键
      * @param count 获取数量，-1或者大于数量时获取全部
      */
-    public async getInstance(value: U[keyof U], field: keyof U, count: number): Promise<Array<Instance<T, U>>>;
+    public async getInstance(value: U[keyof U], field: keyof U, count: number): Promise<Instance<T, U>[]>;
     /**
      * 通过索引获取对应实例就行下一步操作
      * @param value 索引值
@@ -284,7 +284,7 @@ export default class StoreControl<T, U extends IEntity> {
      * @param uk uniqueKey唯一键
      */
     public async getInstance(uk: ukType<U>): Promise<Instance<T, U>>;
-    public async getInstance(a: any, b?: any, c?: any): Promise<Instance<T, U> | Array<Instance<T, U>>> {
+    public async getInstance(a: any, b?: any, c?: any): Promise<Instance<T, U> | Instance<T, U>[]> {
         const { indexKey, mutliIndexKey } = this;
         const redis = await this.getRedis();
         if (c === undefined) {
@@ -437,7 +437,7 @@ export default class StoreControl<T, U extends IEntity> {
         }
     }
 
-    protected async uks2Eneity(uks: Array<ukType<U>>) {
+    protected async uks2Eneity(uks: ukType<U>[]) {
         return Promise.all([ ...uks.map(x => this.get(x)) ]);
     }
 

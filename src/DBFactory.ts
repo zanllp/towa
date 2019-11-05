@@ -5,7 +5,7 @@ export class DBFactory {
         this.typeORMOptions = typeORMOptions;
     }
 
-    public connection: Connection;
+    public connection?: Connection;
 
     public typeORMOptions: ConnectionOptions ;
 
@@ -18,6 +18,7 @@ export class DBFactory {
     }
 
     public async GetManager(): Promise<EntityManager> {
+        // tslint:disable-next-line: no-shadowed-variable
         const Connection = await this.GetConnection();
         return Connection.manager;
     }

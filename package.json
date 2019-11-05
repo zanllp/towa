@@ -1,17 +1,42 @@
 {
   "name": "towa",
-  "version": "1.0.0",
-  "description": "",
+  "version": "1.0.1",
+  "description": "维护redis和mysql(typeorm)自动同步的存储控制",
   "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsc -w",
+    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "lint": "tslint -p tsconfig.json"
   },
-  "keywords": [],
+  "keywords": [
+    "sync",
+    "typrorm",
+    "redis"
+  ],
   "author": "zanllp",
   "license": "MIT",
   "dependencies": {
     "@types/ioredis": "^4.0.18",
     "ioredis": "^4.14.1",
-    "typeorm": "^0.2.20"
+    "typeorm": "^0.2.20",
+    "reflect-metadata": "^0.1.13"
+  },
+  "devDependencies": {
+    "@types/ioredis": "^4.0.18",
+    "@types/jest": "^24.0.21",
+    "ioredis": "^4.14.1",
+    "jest": "^24.9.0",
+    "prettier": "^1.18.2",
+    "ts-jest": "^24.1.0",
+    "tslint": "^6.0.0-beta0",
+    "tslint-config-prettier": "^1.18.0",
+    "typeorm": "^0.2.20",
+    "reflect-metadata": "^0.1.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:zanllp/towa.git"
   }
 }
