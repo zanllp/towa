@@ -62,7 +62,7 @@ export class Instance<T, U extends IEntity> {
             await store.delIndex(this.uk);
             await store.buildIndex(this.uk);
         }
-        await this.syncDB({ key: res });
+        await this.syncDB({ [key]: res });
         this.data = undefined;
         return res;
     }
