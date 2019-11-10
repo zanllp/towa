@@ -34,68 +34,8 @@ export const { storeControl, getBlendDB,storeControlORM } = createConnection({
 # 定义实体
 ## 使用orm的形式
 ```ts
-
-import { storeControlORM } from '../store';
-
-
-export enum Permissions {
-    admin = 'admin',
-    dev = 'dev',
-    user = 'user',
-}
-
-@Index([ 'account', 'email' ], { unique: true })
-@Entity()
-export class User {
-    @PrimaryGeneratedColumn()
-    id: number;
-
-    @Column({ length: 30 })
-    account: string;
-
-    @Column()
-    password: string ;
-
-    @Column({ length: 50 })
-    email: string ;
-
-    @Column({ type: 'tinyint', default: 0 })
-    enable: boolean;
-
-    @Column({
-        type: 'enum',
-        enum: Permissions,
-        default: Permissions.user,
-    })
-    group: Permissions;
-
-    @CreateDateColumn()
-    createdDate: Date;
-
-    @UpdateDateColumn()
-    updatedDate: Date;
-
-    static store = storeControlORM({
-        entity: User,
-        indexField: [ 'email', 'account' ],
-    });
-}
-
-```
-## 定义返回类型及转换方法的形式
-```typescript
-// app/entity/document.ts
 import { PrimaryGeneratedColumn, Entity, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
-import { storeControl } from '../store';
-
-export interface IDocumentRedis {
-    id: number;
-    authorId: number;
-    content: string;
-    title: string;
-    createdDate: string;
-    updatedDate: string;
-}
+import { storeControlORM } from '../store';
 
 @Index([ 'authorId' ])
 @Entity()
@@ -121,19 +61,16 @@ export class Document {
     @UpdateDateColumn()
     updatedDate: Date;
 
-    static store = storeControl<IDocumentRedis, Document>({
+    static store = storeControlORM({
         entity: Document,
-        indexField: [ 'title' ],
         multiIndexField: [ 'authorId' ],
-        convert: o => {
-            o.id = Number(o.id);
-            o.authorId = Number(o.authorId);
-            return o;
-        },
     });
 }
 
+
 ```
+## 非orm定义形式
+[使用定义返回类型及转换方法的形式](./doc/entity-non-orm.md)
 # CRUD
 ```ts
 // app/xx.ts
@@ -154,6 +91,8 @@ await store.push(doc);
 const doc = await store.get(id); // 获取doc id为1的实体
 const doc = await store.get('hello world', 'title'); // 使用索引获取,需要指定indexFiled
 const docs = await store.get(authorId, 'authorId', -1) // 获取用户id为1下的所有doc
+const docs = await store.all(); 
+cosnt docs = await store.range(10);
 const inst = store.getInstance(id);
 const doc = await inst.src();
 ```
