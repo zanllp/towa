@@ -1,5 +1,7 @@
 # towa
 自动同步redis与mysql（typeorm）的node库，支持单索引多索引
+# 例子
+[towa-example](https://github.com/zanllp/towa-example)
 # 安装
 ```
 yarn add towa 或者 npm i towa
@@ -8,7 +10,7 @@ yarn add towa 或者 npm i towa
 ```typescript
 // app/store.ts
 import { createConnection } from 'towa';
-export const { storeControl, getBlendDB } = createConnection({
+export const { storeControl, getBlendDB,storeControlORM } = createConnection({
     typeorm: {
         type: 'mysql',
         host: 'localhost',
@@ -30,6 +32,66 @@ export const { storeControl, getBlendDB } = createConnection({
 ```
 支持多个连接,连接参数和[typeorm](https://github.com/typeorm/typeorm/blob/master/docs/zh_CN/connection-options.md)和[ioredis](https://github.com/luin/ioredis)一样
 # 定义实体
+## 使用orm的形式
+```ts
+
+import { storeControlORM } from '../store';
+import { Type } from 'Towa';
+
+
+export enum Permissions {
+    admin = 'admin',
+    dev = 'dev',
+    user = 'user',
+}
+
+@Index([ 'account', 'email' ], { unique: true })
+@Entity()
+export class User {
+    @Type(Number)
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Type(String)
+    @Column({ length: 30 })
+    account: string;
+
+    @Type(String)
+    @Column()
+    password: string ;
+
+    @Type(String)
+    @Column({ length: 50 })
+    email: string ;
+
+    @Type(Boolean)
+    @Column({ type: 'tinyint', default: 0 })
+    enable: boolean;
+
+    @Type(String)
+    @Column({
+        type: 'enum',
+        enum: Permissions,
+        default: Permissions.user,
+    })
+    group: Permissions;
+
+    @Type(Date)
+    @CreateDateColumn()
+    createdDate: Date;
+
+    @Type(Date)
+    @UpdateDateColumn()
+    updatedDate: Date;
+
+    static store = storeControlORM({
+        entity: User,
+        indexField: [ 'email', 'account' ],
+    });
+}
+
+```
+## 定义返回类型及转换方法的形式
 ```typescript
 // app/entity/document.ts
 import { PrimaryGeneratedColumn, Entity, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';

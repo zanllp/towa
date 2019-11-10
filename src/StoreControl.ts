@@ -1,83 +1,14 @@
 import { FindOneOptions } from 'typeorm';
+import { getBlendDB } from './Connect';
 import { Instance } from './Instance';
 import { check } from './Tool';
 import { IEntity, IStoreControlInit, ukType } from './type';
-import { getBlendDB } from './Connect';
 
 export default class StoreControl<T, U extends IEntity> {
 
-    /**
-     * 在Towa中存放的链接索引
-     */
-    public connectionIndex: number;
-
-    /**
-     * 实体，对应表
-     */
-    public entity: new () => U;
-
-    /**
-     * 唯一键
-     */
-    public redisKey: (uk: ukType<U>) => string;
-
-    /**
-     * 保存整个队列的键
-     */
-    public redisAllKey: string;
-
-    /**
-     * 唯一标识，不可变
-     */
-    public uniqueKey: keyof U = 'id';
-
-    /**
-     * redis与mysql的同步方式，true会在修改redis立马修改mysql，false异步修改mysql
-     */
-    public forceSync: boolean;
-
-    /**
-     * 每次获取后的转换函数
-     */
-    public convert: ((src: T) => T) | undefined;
-
-    /**
-     * 找不到对应键时，从typeorm加载的函数
-     */
-    public dbLoad: ((o: ukType<U>) => FindOneOptions<U>) | undefined;
-
-    /**
-     * 索引字段，1对1，字符串实现
-     */
-    public indexField: (keyof U)[];
-
-    /**
-     * 多索引字段，多对1，集合实现
-     */
-    public mutliIndexField: (keyof U)[];
-
-    /**
-     * 两种索引的混合
-     */
-    public indexFieldBlend: (keyof U)[];
-
-    /**
-     * 索引生成函数，indexKey[field] 返回对应函数
-     */
-    public indexKey: Partial<{ [P in keyof U]: (i: U[keyof U]) => string; }> = {};
-
-    /**
-     * 多索引生成函数，mutliIndexKey[field] 返回对应函数
-     */
-    public mutliIndexKey: Partial<{ [P in keyof U]: (i: U[keyof U]) => string; }> = {};
-
-    /**
-     * 指定缓存字段，默认所有，必须包含id，没有会帮你加上
-     */
-    public cacheField: (keyof U)[];
-
     constructor(init: IStoreControlInit<T, U>, connectionIndex: number) {
-        const { convert, uniqueKey, entity, indexField, cacheField, multiIndexField, forceSync } = init;
+        const { convert, uniqueKey, entity, indexField, cacheField, multiIndexField, forceSync, isORM } = init;
+        this.isORM = isORM === undefined ? false : isORM;
         this.forceSync = forceSync === undefined ? false : forceSync;
         this.uniqueKey = uniqueKey || this.uniqueKey;
         this.redisKey = (o: ukType<U>) => `${entity.name}:${this.ukfn(o)}`;
@@ -117,9 +48,84 @@ export default class StoreControl<T, U extends IEntity> {
     }
 
     /**
+     * 在Towa中存放的链接索引
+     */
+    public connectionIndex: number;
+
+    /**
+     * 实体，对应表
+     */
+    public entity: new () => U;
+
+    /**
+     * 唯一键
+     */
+    public redisKey: (uk: ukType<U>) => string;
+
+    /**
+     * 保存整个队列的键
+     */
+    public redisAllKey: string;
+
+    /**
+     * 唯一标识，不可变
+     */
+    public uniqueKey: keyof U = 'id';
+
+    /**
+     * redis与mysql的同步方式，true会在修改redis立马修改mysql，false异步修改mysql
+     */
+    public forceSync: boolean;
+
+    /**
      * 转换成uk
      */
     public ukfn: (uk: ukType<U>) => string = o => `${((typeof o === 'string') || (typeof o === 'number')) ? o : o[this.uniqueKey]}`;
+
+    /**
+     * 每次获取后的转换函数
+     */
+    public convert: ((src: T) => T) | undefined;
+
+    /**
+     * 找不到对应键时，从typeorm加载的函数
+     */
+    public dbLoad: ((o: ukType<U>) => FindOneOptions<U>) | undefined;
+
+    /**
+     * 索引字段，1对1，字符串实现
+     */
+    public indexField: Array<keyof U>;
+
+    /**
+     * 多索引字段，多对1，集合实现
+     */
+    public mutliIndexField: Array<keyof U>;
+
+    /**
+     * 两种索引的混合
+     */
+    public indexFieldBlend: Array<keyof U>;
+
+    /**
+     * 索引生成函数，indexKey[field] 返回对应函数
+     */
+    public indexKey: Partial<{ [P in keyof U]: (i: U[keyof U]) => string; }> = {};
+
+    /**
+     * 多索引生成函数，mutliIndexKey[field] 返回对应函数
+     */
+    public mutliIndexKey: Partial<{ [P in keyof U]: (i: U[keyof U]) => string; }> = {};
+
+    /**
+     * 指定缓存字段，默认所有，必须包含id，没有会帮你加上
+     */
+    public cacheField: Array<keyof U>;
+
+    private isORM: boolean;
+
+    // tslint:disable-next-line:ban-types
+    private ormType: Partial<{ [p in keyof T]: Function }> = {};
 
     public getBlendDB() {
         return getBlendDB(this.connectionIndex);
@@ -246,7 +252,7 @@ export default class StoreControl<T, U extends IEntity> {
                 }
             }
             const res = await redis.hgetall(key);
-            return this.convert ? this.convert(res) : res;
+            return this.redisSourceConvert(res);
         } else {
             const field = b as keyof U;
             const value = a as U[keyof U];
@@ -262,7 +268,34 @@ export default class StoreControl<T, U extends IEntity> {
                 uks = uks.slice(0, count - 1);
             }
             const res = await Promise.all([ ...uks.map(x => this.getOrFail(x)) ]);
-            return this.convert ? res.map(this.convert) : res;
+            return res.map(x => this.redisSourceConvert(x as any));
+        }
+    }
+
+    public redisSourceConvert(res: { [p in keyof T ]: string }) {
+        const { isORM, ormType } = this;
+        if (isORM) {
+            for (const key in res) {
+                let type = ormType[key];
+                if (type === undefined) {
+                    type = Reflect.getMetadata('design-towa:type', new this.entity(), key);
+                    check(type, `${this.entity.name}的键${key}没有加Type装饰器`);
+                    ormType[key] = type;
+                }
+                switch (type) {
+                    case String:
+                        continue;
+                    case Date:
+                        type = (x: string) => new Date(x);
+                        ormType[key] = type;
+                        break;
+                    default:
+                }
+                res[key] = type!(res[key]);
+            }
+            return res as any;
+        } else {
+            return this.convert ? this.convert(res as any) : res;
         }
     }
 
@@ -272,7 +305,7 @@ export default class StoreControl<T, U extends IEntity> {
      * @param field 索引的字段，或者叫键
      * @param count 获取数量，-1或者大于数量时获取全部
      */
-    public async getInstance(value: U[keyof U], field: keyof U, count: number): Promise<Instance<T, U>[]>;
+    public async getInstance(value: U[keyof U], field: keyof U, count: number): Promise<Array<Instance<T, U>>>;
     /**
      * 通过索引获取对应实例就行下一步操作
      * @param value 索引值
@@ -284,7 +317,7 @@ export default class StoreControl<T, U extends IEntity> {
      * @param uk uniqueKey唯一键
      */
     public async getInstance(uk: ukType<U>): Promise<Instance<T, U>>;
-    public async getInstance(a: any, b?: any, c?: any): Promise<Instance<T, U> | Instance<T, U>[]> {
+    public async getInstance(a: any, b?: any, c?: any): Promise<Instance<T, U> | Array<Instance<T, U>>> {
         const { indexKey, mutliIndexKey } = this;
         const redis = await this.getRedis();
         if (c === undefined) {
@@ -317,6 +350,10 @@ export default class StoreControl<T, U extends IEntity> {
         }
     }
 
+    protected async uks2Eneity(uks: Array<ukType<U>>) {
+        return Promise.all([ ...uks.map(x => this.getOrFail(x)) ]);
+    }
+
     public async all() {
         return this.range();
     }
@@ -347,6 +384,20 @@ export default class StoreControl<T, U extends IEntity> {
                 await this.save2redis(target);
             }
         }
+    }
+
+    private async save2redis(target: U) {
+        const key = this.redisKey(target);
+        const { cacheField } = this;
+        const redis = await this.getRedis();
+        if (cacheField.length) {
+            const args = new Array<string>();
+            cacheField.forEach(k => args.push(k as any, target[k] as any));
+            await redis.hmset(key, ...args);
+        } else {
+            await redis.hmset(key, target);
+        }
+        await this.buildIndex(target);
     }
 
     public async buildIndex(uk: ukType<U>) {
@@ -435,23 +486,5 @@ export default class StoreControl<T, U extends IEntity> {
         } else {
             await redis.lpush(this.redisAllKey, this.ukfn(target));
         }
-    }
-
-    protected async uks2Eneity(uks: ukType<U>[]) {
-        return Promise.all([ ...uks.map(x => this.get(x)) ]);
-    }
-
-    private async save2redis(target: U) {
-        const key = this.redisKey(target);
-        const { cacheField } = this;
-        const redis = await this.getRedis();
-        if (cacheField.length) {
-            const args = new Array<string>();
-            cacheField.forEach(k => args.push(k as any, target[k] as any));
-            await redis.hmset(key, ...args);
-        } else {
-            await redis.hmset(key, target);
-        }
-        await this.buildIndex(target);
     }
 }

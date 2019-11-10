@@ -13,7 +13,6 @@ export interface IBlendDB {
 const connect: IBlendDB[] = new Array();
 const connectParams: IConnectionParams[] = new Array();
 
-// tslint:disable-next-line: no-shadowed-variable
 export const createConnection = (connect: IConnectionParams) => {
     connectParams.push(connect);
     const index = connectParams.length - 1;
@@ -22,6 +21,12 @@ export const createConnection = (connect: IConnectionParams) => {
             return new StoreControl(init, index);
         },
         getBlendDB: () => getBlendDB(index),
+        storeControlORM: <U extends IEntity>(init: IStoreControlInit<U, U>) => {
+            return new StoreControl({
+                ...init,
+                isORM: true,
+            }, index);
+        },
     };
 };
 export const getBlendDB = (index: number): IBlendDB => {
@@ -33,3 +38,6 @@ export const getBlendDB = (index: number): IBlendDB => {
     }
     return connect[index];
 };
+
+// tslint:disable-next-line:ban-types
+export function Type(type: Function) { return Reflect.metadata('design-towa:type', type); }
