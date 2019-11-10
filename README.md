@@ -92,7 +92,7 @@ const doc = await store.get(id); // 获取doc id为1的实体
 const doc = await store.get('hello world', 'title'); // 使用索引获取,需要指定indexFiled
 const docs = await store.get(authorId, 'authorId', -1) // 获取用户id为1下的所有doc
 const docs = await store.all(); 
-cosnt docs = await store.range(10);
+const docs = await store.range(10);
 const inst = store.getInstance(id);
 const doc = await inst.src();
 ```
