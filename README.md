@@ -36,7 +36,6 @@ export const { storeControl, getBlendDB,storeControlORM } = createConnection({
 ```ts
 
 import { storeControlORM } from '../store';
-import { Type } from 'Towa';
 
 
 export enum Permissions {
@@ -48,27 +47,21 @@ export enum Permissions {
 @Index([ 'account', 'email' ], { unique: true })
 @Entity()
 export class User {
-    @Type(Number)
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Type(String)
     @Column({ length: 30 })
     account: string;
 
-    @Type(String)
     @Column()
     password: string ;
 
-    @Type(String)
     @Column({ length: 50 })
     email: string ;
 
-    @Type(Boolean)
     @Column({ type: 'tinyint', default: 0 })
     enable: boolean;
 
-    @Type(String)
     @Column({
         type: 'enum',
         enum: Permissions,
@@ -76,11 +69,9 @@ export class User {
     })
     group: Permissions;
 
-    @Type(Date)
     @CreateDateColumn()
     createdDate: Date;
 
-    @Type(Date)
     @UpdateDateColumn()
     updatedDate: Date;
 

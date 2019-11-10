@@ -278,7 +278,7 @@ export default class StoreControl<T, U extends IEntity> {
             for (const key in res) {
                 let type = ormType[key];
                 if (type === undefined) {
-                    type = Reflect.getMetadata('design-towa:type', new this.entity(), key);
+                    type = Reflect.getMetadata('design:type', new this.entity(), key);
                     check(type, `${this.entity.name}的键${key}没有加Type装饰器`);
                     ormType[key] = type;
                 }

@@ -39,5 +39,3 @@ export const getBlendDB = (index: number): IBlendDB => {
     return connect[index];
 };
 
-// tslint:disable-next-line:ban-types
-export function Type(type: Function) { return Reflect.metadata('design-towa:type', type); }
