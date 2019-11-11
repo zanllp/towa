@@ -272,14 +272,14 @@ export default class StoreControl<T, U extends IEntity> {
         }
     }
 
-    public redisSourceConvert(res: { [p in keyof T ]: string }) {
+    public redisSourceConvert(res: { [p in keyof T ]: any }): T {
         const { isORM, ormType } = this;
         if (isORM) {
             for (const key in res) {
                 let type = ormType[key];
                 if (type === undefined) {
                     type = Reflect.getMetadata('design:type', new this.entity(), key);
-                    check(type, `${this.entity.name}的键${key}没有加Type装饰器`);
+                    check(type, `${this.entity.name}的字段${key}不存在反射元design:type`);
                     ormType[key] = type;
                 }
                 switch (type) {
@@ -289,11 +289,10 @@ export default class StoreControl<T, U extends IEntity> {
                         type = (x: string) => new Date(x);
                         ormType[key] = type;
                         break;
-                    default:
                 }
                 res[key] = type!(res[key]);
             }
-            return res as any;
+            return res;
         } else {
             return this.convert ? this.convert(res as any) : res;
         }

@@ -97,13 +97,14 @@ const inst = store.getInstance(id);
 const doc = await inst.src();
 ```
 ## update
-* 方法1，先从typeorm获取实体，可以用findOneOrFail也可以用store.getRepo()获取对应的存储库
+* 方法1
 ```ts
-const doc = await store.findOneOrFail(id);
+const doc = await store.getOrFail(id);
 doc.content += 'emmm';
 await store.save(doc);
 ```
-* 方法2，速度更快，因为除同步时外，不需要经过typeorm
+* 方法2
+速度可能更快，因为知道你修改了哪些字段，不会无脑重建索引
 ```ts
 const inst = store.getInstance(id);
 await inst.setItems({   
