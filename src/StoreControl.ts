@@ -6,47 +6,6 @@ import { IEntity, IStoreControlInit, ukType } from './type';
 
 export default class StoreControl<T, U extends IEntity> {
 
-    constructor(init: IStoreControlInit<T, U>, connectionIndex: number) {
-        const { convert, uniqueKey, entity, indexField, cacheField, multiIndexField, forceSync, isORM } = init;
-        this.isORM = isORM === undefined ? false : isORM;
-        this.forceSync = forceSync === undefined ? false : forceSync;
-        this.uniqueKey = uniqueKey || this.uniqueKey;
-        this.redisKey = (o: ukType<U>) => `${entity.name}:${this.ukfn(o)}`;
-        this.redisAllKey = `${entity.name}All`;
-        this.entity = entity;
-        this.convert = convert;
-        if (uniqueKey) {
-            this.dbLoad = k => {
-                if (typeof k === 'number' || typeof k === 'string') {
-                    return {
-                        where: {
-                            [this.uniqueKey]: k,
-                        },
-                    };
-                } else {
-                    return {
-                        where: {
-                            [this.uniqueKey]: k[this.uniqueKey],
-                        },
-                    };
-                }
-            };
-        }
-        this.cacheField = cacheField || [];
-        this.indexField = indexField || [];
-        this.mutliIndexField = multiIndexField || [];
-        this.indexFieldBlend = [ ...this.indexField, ...this.mutliIndexField ];
-        this.indexField.forEach(x => this.indexKey[x] = (o: U[keyof U]) => `${entity.name}-${x}:${o}`);
-        this.mutliIndexField.forEach(x => this.mutliIndexKey[x] = (o: U[keyof U]) => `${entity.name}-${x}:${o}`);
-        if (this.cacheField.length) {
-            if (!this.cacheField.includes('id')) {
-                this.cacheField.push('id');
-            }
-            this.indexFieldBlend.forEach(x => check(this.cacheField.includes(x), `(多)索引字段${x}不存在于缓存字段中`));
-        }
-        this.connectionIndex = connectionIndex;
-    }
-
     /**
      * 在Towa中存放的链接索引
      */
@@ -76,11 +35,6 @@ export default class StoreControl<T, U extends IEntity> {
      * redis与mysql的同步方式，true会在修改redis立马修改mysql，false异步修改mysql
      */
     public forceSync: boolean;
-
-    /**
-     * 转换成uk
-     */
-    public ukfn: (uk: ukType<U>) => string = o => `${((typeof o === 'string') || (typeof o === 'number')) ? o : o[this.uniqueKey]}`;
 
     /**
      * 每次获取后的转换函数
@@ -126,6 +80,52 @@ export default class StoreControl<T, U extends IEntity> {
 
     // tslint:disable-next-line:ban-types
     private ormType: Partial<{ [p in keyof T]: Function }> = {};
+
+    constructor(init: IStoreControlInit<T, U>, connectionIndex: number) {
+        const { convert, uniqueKey, entity, indexField, cacheField, multiIndexField, forceSync, isORM } = init;
+        this.isORM = isORM === undefined ? false : isORM;
+        this.forceSync = forceSync === undefined ? false : forceSync;
+        this.uniqueKey = uniqueKey || this.uniqueKey;
+        this.redisKey = (o: ukType<U>) => `${this.entity.name}:${this.ukfn(o)}`;
+        this.redisAllKey = `${entity.name}All`;
+        this.entity = entity;
+        this.convert = convert;
+        if (uniqueKey) {
+            this.dbLoad = k => {
+                if (typeof k === 'number' || typeof k === 'string') {
+                    return {
+                        where: {
+                            [this.uniqueKey]: k,
+                        },
+                    };
+                } else {
+                    return {
+                        where: {
+                            [this.uniqueKey]: k[this.uniqueKey],
+                        },
+                    };
+                }
+            };
+        }
+        this.cacheField = cacheField || [];
+        this.indexField = indexField || [];
+        this.mutliIndexField = multiIndexField || [];
+        this.indexFieldBlend = [...this.indexField, ...this.mutliIndexField];
+        this.indexField.forEach(x => this.indexKey[x] = (o: U[keyof U]) => `${entity.name}-${x}:${o}`);
+        this.mutliIndexField.forEach(x => this.mutliIndexKey[x] = (o: U[keyof U]) => `${entity.name}-${x}:${o}`);
+        if (this.cacheField.length) {
+            if (!this.cacheField.includes('id')) {
+                this.cacheField.push('id');
+            }
+            this.indexFieldBlend.forEach(x => check(this.cacheField.includes(x), `(多)索引字段${x}不存在于缓存字段中`));
+        }
+        this.connectionIndex = connectionIndex;
+    }
+
+    /**
+     * 转换成uk
+     */
+    public ukfn: (uk: ukType<U>) => string = o => `${((typeof o === 'string') || (typeof o === 'number')) ? o : o[this.uniqueKey]}`;
 
     public getBlendDB() {
         return getBlendDB(this.connectionIndex);
@@ -174,7 +174,7 @@ export default class StoreControl<T, U extends IEntity> {
             }
             const uks = allEntity.map(x => x[this.uniqueKey]);
             if (uks.length) {
-                redis.lpush(allKey, ...uks);
+                redis.lpush(allKey, ...uks as any);
             }
         }
         const ids = await redis.lrange(allKey, start, stop); // -1是直到结束
@@ -252,7 +252,7 @@ export default class StoreControl<T, U extends IEntity> {
                 }
             }
             const res = await redis.hgetall(key);
-            return this.redisSourceConvert(res);
+            return this.redisSourceConvert(res as any);
         } else {
             const field = b as keyof U;
             const value = a as U[keyof U];
@@ -267,19 +267,19 @@ export default class StoreControl<T, U extends IEntity> {
             if (uks.length > count && count !== -1) {
                 uks = uks.slice(0, count - 1);
             }
-            const res = await Promise.all([ ...uks.map(x => this.getOrFail(x)) ]);
+            const res = await Promise.all([...uks.map(x => this.getOrFail(x))]);
             return res.map(x => this.redisSourceConvert(x as any));
         }
     }
 
-    public redisSourceConvert(res: { [p in keyof T ]: any }): T {
+    public redisSourceConvert(res: { [p in keyof T]: string }) {
         const { isORM, ormType } = this;
         if (isORM) {
             for (const key in res) {
                 let type = ormType[key];
                 if (type === undefined) {
-                    type = Reflect.getMetadata('design:type', new this.entity(), key);
-                    check(type, `${this.entity.name}的字段${key}不存在反射元design:type`);
+                    type = Reflect.getMetadata('design:type', this.entity.prototype, key);
+                    check(type, `${this.entity.name}的键${key}没有加Type装饰器`);
                     ormType[key] = type;
                 }
                 switch (type) {
@@ -289,10 +289,11 @@ export default class StoreControl<T, U extends IEntity> {
                         type = (x: string) => new Date(x);
                         ormType[key] = type;
                         break;
+                    default:
                 }
                 res[key] = type!(res[key]);
             }
-            return res;
+            return res as any;
         } else {
             return this.convert ? this.convert(res as any) : res;
         }
@@ -328,6 +329,9 @@ export default class StoreControl<T, U extends IEntity> {
                 const value = a as U[keyof U];
                 const indexKeyFunc = indexKey[field]!;
                 check(indexKeyFunc, `索引${field}不存在`);
+                if (!await redis.exists(indexKeyFunc(value))) {
+                    await this.load(value, field, true);
+                }
                 uk = await redis.get(indexKeyFunc(value)) as string;
             }
             return new Instance(uk, this);
@@ -347,10 +351,6 @@ export default class StoreControl<T, U extends IEntity> {
             }
             return uks.map(uk => new Instance(uk, this));
         }
-    }
-
-    protected async uks2Eneity(uks: Array<ukType<U>>) {
-        return Promise.all([ ...uks.map(x => this.getOrFail(x)) ]);
     }
 
     public async all() {
@@ -377,26 +377,12 @@ export default class StoreControl<T, U extends IEntity> {
             if (loadAll) {
                 const repo = await this.getRepo();
                 const all = await repo.find({ where: { [field]: value } });
-                await Promise.all([ ...all.map(x => this.save2redis(x)) ]);
+                await Promise.all([...all.map(x => this.save2redis(x))]);
             } else {
                 target = await this.findOneOrFail({ where: { [field]: value } });
                 await this.save2redis(target);
             }
         }
-    }
-
-    private async save2redis(target: U) {
-        const key = this.redisKey(target);
-        const { cacheField } = this;
-        const redis = await this.getRedis();
-        if (cacheField.length) {
-            const args = new Array<string>();
-            cacheField.forEach(k => args.push(k as any, target[k] as any));
-            await redis.hmset(key, ...args);
-        } else {
-            await redis.hmset(key, target);
-        }
-        await this.buildIndex(target);
     }
 
     public async buildIndex(uk: ukType<U>) {
@@ -412,10 +398,10 @@ export default class StoreControl<T, U extends IEntity> {
             t = uk;
         }
         for (const i of indexField) { // 建立索引
-            await redis.set(indexKey[i]!(t[i]), t[this.uniqueKey]);
+            await redis.set(indexKey[i]!(t[i]), t[this.uniqueKey] as any);
         }
         for (const i of mutliIndexField) {
-            await redis.sadd(mutliIndexKey[i]!(t[i]), t[this.uniqueKey]);
+            await redis.sadd(mutliIndexKey[i]!(t[i]), t[this.uniqueKey] as any);
         }
     }
 
@@ -446,7 +432,7 @@ export default class StoreControl<T, U extends IEntity> {
         const redis = await this.getRedis();
         await this.delIndex(uk);
         await redis.del(this.redisKey(uk));
-        await redis.lrem(this.redisAllKey, 0, uk);
+        await redis.lrem(this.redisAllKey, 0, uk as any);
         const sync = async () => this.getRepo().then(repo => this.findOneOrFail(this.uk2dbLoadParams(uk)).then(x => repo.remove(x)));
         if (this.forceSync) {
             await sync();
@@ -485,5 +471,23 @@ export default class StoreControl<T, U extends IEntity> {
         } else {
             await redis.lpush(this.redisAllKey, this.ukfn(target));
         }
+    }
+
+    protected async uks2Eneity(uks: Array<ukType<U>>) {
+        return Promise.all([...uks.map(x => this.getOrFail(x))]);
+    }
+
+    private async save2redis(target: U) {
+        const key = this.redisKey(target);
+        const { cacheField } = this;
+        const redis = await this.getRedis();
+        if (cacheField.length) {
+            const args = new Array<string>();
+            cacheField.forEach(k => args.push(k as any, target[k] as any));
+            await redis.hmset(key, ...args);
+        } else {
+            await redis.hmset(key, target);
+        }
+        await this.buildIndex(target);
     }
 }
