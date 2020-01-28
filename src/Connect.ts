@@ -1,7 +1,7 @@
 import { Redis } from 'ioredis';
 import { DBFactory } from './DBFactory';
 import StoreControl from './StoreControl';
-import { check } from './Tool';
+import { runtimeCheck } from './Tool';
 import { IConnectionParams, IEntity, IStoreControlInit } from './type';
 import IORedis = require('ioredis');
 
@@ -10,7 +10,7 @@ export interface IBlendDB {
     redis: Redis;
 }
 
-const connect: IBlendDB[] = new Array();
+const connects: IBlendDB[] = new Array();
 const connectParams: IConnectionParams[] = new Array();
 
 export const createConnection = (connect: IConnectionParams) => {
@@ -30,12 +30,11 @@ export const createConnection = (connect: IConnectionParams) => {
     };
 };
 export const getBlendDB = (index: number): IBlendDB => {
-    if (!connect[index]) {
-        check(connectParams[index], `索引错误 index:${index},Towa.connectParams.length:${connectParams.length},value:${connectParams[index]}`);
-        connect[index] = {} as IBlendDB;
-        connect[index].typeorm = new DBFactory(connectParams[index].typeorm);
-        connect[index].redis = new IORedis(connectParams[index].redis);
+    if (!connects[index]) {
+        runtimeCheck(connectParams[index], `索引错误 index:${index},Towa.connectParams.length:${connectParams.length},value:${connectParams[index]}`);
+        connects[index] = {} as IBlendDB;
+        connects[index].typeorm = new DBFactory(connectParams[index].typeorm);
+        connects[index].redis = new IORedis(connectParams[index].redis);
     }
-    return connect[index];
+    return connects[index];
 };
-

@@ -1,6 +1,6 @@
 {
   "name": "towa",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "维护redis和mysql(typeorm)自动同步的存储控制",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

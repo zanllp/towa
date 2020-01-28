@@ -1,11 +1,11 @@
-import { Connection, ConnectionOptions, /* getConnectionManager,*/ createConnection, EntityManager, EntitySchema, FindOneOptions, ObjectType, Repository } from 'typeorm';
+import { /* getConnectionManager,*/ createConnection, Connection, EntityManager, Repository, ObjectType, EntitySchema, FindOneOptions, ConnectionOptions } from 'typeorm';
 
 export class DBFactory {
     constructor(typeORMOptions: ConnectionOptions) {
         this.typeORMOptions = typeORMOptions;
     }
 
-    public connection?: Connection;
+    public connection: Connection;
 
     public typeORMOptions: ConnectionOptions ;
 
@@ -18,9 +18,7 @@ export class DBFactory {
     }
 
     public async GetManager(): Promise<EntityManager> {
-        // tslint:disable-next-line: no-shadowed-variable
-        const Connection = await this.GetConnection();
-        return Connection.manager;
+        return (await this.GetConnection()).manager;
     }
 
     public async GetRepository<Entity>(target: ObjectType<Entity> | EntitySchema<Entity> | string): Promise<Repository<Entity>> {

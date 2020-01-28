@@ -1,2 +1,11 @@
-node_modules/
-src/
+src
+test
+node_modules
+package-lock.json
+tsconfig.json
+tslint.json
+yarn.lock
+.gitignore
+.npmignore
+.prettierrc
+doc
