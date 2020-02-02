@@ -187,8 +187,9 @@ export default class StoreControl<T, U extends IEntity> {
      * @param value 索引值
      * @param field 索引的字段，或者叫键
      * @param count 获取数量，-1或者大于数量时获取全部
+     * @param start 开始位置
      */
-    public async get(value: U[keyof U], field: keyof U, count: number): Promise<T[] | null>;
+    public async get(value: U[keyof U], field: keyof U, count: number, start?: number): Promise<T[] | null>;
     /**
      * 通过索引获取
      * @param value 索引值
@@ -200,9 +201,9 @@ export default class StoreControl<T, U extends IEntity> {
      * @param uk uniqueKey唯一键
      */
     public async get(uk: ukType<U>): Promise<T | null>;
-    public async get(a: any, b?: any, c?: any): Promise<T | T[] | null> {
+    public async get(a: any, b?: any, c?: any, d?: any): Promise<T | T[] | null> {
         try {
-            return await this.getOrFail(a, b, c);
+            return await this.getOrFail(a, b, c, d);
         } catch (error) {
             return null;
         }
@@ -213,8 +214,9 @@ export default class StoreControl<T, U extends IEntity> {
      * @param value 索引值
      * @param field 索引的字段，或者叫键
      * @param count 获取数量，-1或者大于数量时获取全部
+     * @param start 开始位置
      */
-    public async getOrFail(value: U[keyof U], field: keyof U, count: number): Promise<T[]>;
+    public async getOrFail(value: U[keyof U], field: keyof U, count: number, start?: number): Promise<T[]>;
     /**
      * 通过索引获取
      * @param value 索引值
@@ -226,7 +228,7 @@ export default class StoreControl<T, U extends IEntity> {
      * @param uk uniqueKey唯一键
      */
     public async getOrFail(uk: ukType<U>): Promise<T>;
-    public async getOrFail(a: any, b?: any, c?: any): Promise<T | T[]> {
+    public async getOrFail(a: any, b?: any, c?: any, start = 0): Promise<T | T[]> {
         const { indexKey, mutliIndexKey } = this;
         const redis = await this.getRedis();
         if (c === undefined) {
@@ -239,7 +241,7 @@ export default class StoreControl<T, U extends IEntity> {
                 const indexKeyFunc = indexKey[field]!;
                 runtimeCheck(indexKeyFunc, `索引${field}不存在`);
                 const iKey = indexKeyFunc(value); // 索引键
-                await this.checkExistAndLoad(iKey, value, field, true);
+                await this.checkExistAndLoad(iKey, value, field);
                 uk = await redis.get(iKey) as string; // 肯定是字符串，找不到的话在上面就抛异常了
             }
             const key = this.redisKey(uk);
@@ -256,8 +258,9 @@ export default class StoreControl<T, U extends IEntity> {
             const key = indexKeyFunc(value);
             await this.checkExistAndLoad(key, value, field, true);
             let uks: string[] = await redis.smembers(key);
+            uks.reverse(); // smember的取出顺序和lrange是相反的，为了保持一致反转下
             if (uks.length > count && count !== -1) {
-                uks = uks.slice(0, count - 1);
+                uks = uks.slice(start, start + count);
             }
             const res = await Promise.all(uks.map(x => this.getOrFail(x)));
             return res.map(x => this.redisSourceConvert(x as any));
@@ -277,9 +280,8 @@ export default class StoreControl<T, U extends IEntity> {
                 switch (type) {
                     case String:
                         return;
-                    case Boolean:
-                        // mysql的布尔用的tinyint
-                        type = (x: string) => Boolean(Number(x));
+                    case Boolean: // mysql的布尔用的tinyint
+                        type = (x: string) => isNaN(x as any) ? (x === 'true' || false) : Boolean(Number(x));
                         ormType[key] = type;
                         break;
                     case Date:
@@ -301,8 +303,9 @@ export default class StoreControl<T, U extends IEntity> {
      * @param value 索引值
      * @param field 索引的字段，或者叫键
      * @param count 获取数量，-1或者大于数量时获取全部
+     * @param start 开始位置
      */
-    public async getInstance(value: U[keyof U], field: keyof U, count: number): Promise<Array<Instance<T, U>>>;
+    public async getInstance(value: U[keyof U], field: keyof U, count: number, start?: number): Promise<Array<Instance<T, U>>>;
     /**
      * 通过索引获取对应实例就行下一步操作
      * @param value 索引值
@@ -314,7 +317,7 @@ export default class StoreControl<T, U extends IEntity> {
      * @param uk uniqueKey唯一键
      */
     public async getInstance(uk: ukType<U>): Promise<Instance<T, U>>;
-    public async getInstance(a: any, b?: any, c?: any): Promise<Instance<T, U> | Array<Instance<T, U>>> {
+    public async getInstance(a: any, b?: any, c?: any, start = 0): Promise<Instance<T, U> | Array<Instance<T, U>>> {
         const { indexKey, mutliIndexKey } = this;
         const redis = await this.getRedis();
         if (c === undefined) {
@@ -341,8 +344,9 @@ export default class StoreControl<T, U extends IEntity> {
             const key = indexKeyFunc(value);
             await this.checkExistAndLoad(key, value, field, true);
             let uks: string[] = await redis.smembers(key);
+            uks.reverse();
             if (uks.length > count && count !== -1) {
-                uks = uks.slice(0, count - 1);
+                uks = uks.slice(start, start + count);
             }
             return uks.map(uk => new Instance(uk, this));
         }
@@ -392,7 +396,7 @@ export default class StoreControl<T, U extends IEntity> {
             if (loadAll) {
                 const repo = await this.getRepo();
                 const all = await repo.find({ where: { [field]: value } });
-                runtimeCheck(all.length > 0, `找不到对应实体k:${field} v:${value}`);
+                // runtimeCheck(all.length > 0, `找不到对应实体k:${field} v:${value}`);
                 await Promise.all(all.map(x => this.save2redis(x)));
             } else {
                 target = await this.findOneOrFail({ where: { [field]: value } });

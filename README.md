@@ -1,3 +1,4 @@
+![](https://img.shields.io/npm/v/towa.svg)
 # towa
 自动同步redis与mysql（typeorm）的node库，支持单索引多索引
 # 例子
